@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StakeZK — zkLTC Staking on LitVM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #c9a84c;
+      --gold-dim: #a07830;
+      --gold-bg: rgba(201,168,76,0.08);
+      --bg: #0b0d12;
+      --surface: #131620;
+      --surface2: #1a1e2a;
+      --surface3: #202433;
+      --border: rgba(201,168,76,0.15);
+      --border-bright: rgba(201,168,76,0.4);
+      --text: #e8e2d4;
+      --muted: #6a6050;
+      --red: #e05555;
+      --green: #4caf7d;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0 20px;
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 40px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-hex {
+      width: 36px; height: 36px;
+      background: var(--gold);
+      clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700; font-size: 14px; color: #0b0d12;
+    }
+    .logo-name { font-family: 'Space Mono', monospace; font-size: 16px; color: var(--gold); letter-spacing: 0.06em; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .network-pill {
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      background: var(--gold-bg); color: var(--gold);
+      border: 0.5px solid var(--border-bright);
+      border-radius: 20px; padding: 5px 12px;
+    }
+    #connect-btn {
+      font-family: 'Space Mono', monospace; font-size: 12px;
+      background: var(--gold); color: #0b0d12;
+      border: none; border-radius: 8px;
+      padding: 8px 18px; cursor: pointer;
+      font-weight: 700; letter-spacing: 0.04em;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #connect-btn:hover { background: #d4b05a; }
+    #connect-btn:active { transform: scale(0.97); }
+    #connect-btn.connected {
+      background: transparent; color: var(--gold);
+      border: 0.5px solid var(--border-bright);
+      font-size: 11px;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      width: 100%; max-width: 900px;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .stat-value { font-size: 22px; font-weight: 500; color: var(--text); }
+    .stat-value.gold { color: var(--gold); }
+    .stat-unit { font-size: 12px; color: var(--muted); margin-left: 3px; }
+
+    /* ── Main layout ── */
+    .main { width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .panel-tabs { display: flex; background: var(--surface2); border-bottom: 0.5px solid var(--border); }
+    .ptab {
+      flex: 1; padding: 14px;
+      font-family: 'Space Mono', monospace; font-size: 12px;
+      text-align: center; cursor: pointer;
+      color: var(--muted); letter-spacing: 0.05em;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s;
+    }
+    .ptab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .panel-body { padding: 24px; }
+
+    .input-label {
+      font-size: 12px; color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      display: flex; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .bal-link { color: var(--gold-dim); cursor: pointer; transition: color 0.15s; }
+    .bal-link:hover { color: var(--gold); }
+
+    .input-wrap { position: relative; margin-bottom: 4px; }
+    .input-wrap input {
+      width: 100%;
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 80px 13px 14px;
+      font-size: 17px; color: var(--text);
+      font-family: 'Space Mono', monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-wrap input:focus { border-color: var(--border-bright); }
+    .input-wrap input::placeholder { color: var(--muted); }
+    .token-badge {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 11px; color: var(--gold);
+      font-family: 'Space Mono', monospace;
+      background: var(--gold-bg); border: 0.5px solid var(--border);
+      border-radius: 6px; padding: 3px 8px;
+    }
+
+    .arrow-mid { display: flex; justify-content: center; align-items: center; margin: 10px 0; }
+    .arrow-circle {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface2); border: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .arrow-circle svg { width: 13px; height: 13px; }
+
+    .output-row {
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 18px;
+    }
+    .output-amount { font-family: 'Space Mono', monospace; font-size: 17px; color: var(--text); }
+
+    .info-lines { margin-bottom: 18px; }
+    .info-line {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      padding: 4px 0;
+    }
+    .info-line .val { color: var(--text); }
+    .info-line .val.gold { color: var(--gold); }
+
+    .action-btn {
+      width: 100%; padding: 14px;
+      border-radius: 10px; border: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 13px; letter-spacing: 0.05em;
+      cursor: pointer; font-weight: 700;
+      transition: all 0.15s;
+    }
+    .btn-gold { background: var(--gold); color: #0b0d12; }
+    .btn-gold:hover { background: #d4b05a; }
+    .btn-gold:active { transform: scale(0.98); }
+    .btn-outline { background: transparent; color: var(--gold); border: 0.5px solid var(--border-bright); }
+    .btn-outline:hover { background: var(--gold-bg); }
+
+    /* ── Positions panel ── */
+    .pos-panel {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 16px; padding: 24px;
+    }
+    .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .pos-title { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }
+    .pos-empty { text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
+
+    .pos-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr auto;
+      gap: 12px; align-items: center;
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .pos-col-label { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; margin-bottom: 4px; }
+    .pos-col-val { font-size: 14px; font-family: 'Space Mono', monospace; }
+    .pos-col-val.gold { color: var(--gold); }
+
+    .claim-btn {
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      background: var(--gold-bg); color: var(--gold);
+      border: 0.5px solid var(--border-bright);
+      border-radius: 6px; padding: 6px 12px;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .claim-btn:hover { background: rgba(201,168,76,0.18); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 0.5px solid var(--border-bright);
+      border-radius: 10px; padding: 12px 22px;
+      font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text);
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
+      max-width: 360px; text-align: center;
+    }
+    #toast.show { opacity: 1; }
+    #toast.err { border-color: var(--red); color: var(--red); }
+    #toast.ok  { border-color: var(--green); color: var(--green); }
+
+    /* ── Divider ── */
+    .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
+
+    @media (max-width: 640px) {
+      .stats-bar { grid-template-columns: 1fr 1fr; }
+      .main { grid-template-columns: 1fr; }
+      .pos-panel { grid-column: 1; }
+      .pos-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-hex">Z</div>
+    <span class="logo-name">StakeZK</span>
+  </div>
+  <div class="header-right">
+    <div class="network-pill">LitVM Testnet</div>
+    <button id="connect-btn" onclick="connectWallet()">Connect Wallet</button>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="stat-label">APY</div>
+    <div class="stat-value gold">12.4<span class="stat-unit">%</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">TVL</div>
+    <div class="stat-value" id="stat-tvl">—<span class="stat-unit">zkLTC</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">My Staked</div>
+    <div class="stat-value" id="stat-staked">—<span class="stat-unit">wzkLTC</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Earned</div>
+    <div class="stat-value gold" id="stat-earned">—<span class="stat-unit">zkLTC</span></div>
+  </div>
+</div>
+
+<!-- Main panels -->
+<div class="main">
+
+  <!-- Stake panel -->
+  <div class="panel">
+    <div class="panel-tabs">
+      <div class="ptab active" onclick="switchTab(this,'stake-body','unstake-body')">Stake</div>
+      <div class="ptab" onclick="switchTab(this,'unstake-body','stake-body')">Unstake</div>
+    </div>
+
+    <!-- Stake body -->
+    <div id="stake-body" class="panel-body">
+      <div class="input-label">
+        <span>You stake</span>
+        <span class="bal-link" onclick="setMax('stake-input','zkltc-bal')">Balance: <span id="zkltc-bal">—</span> zkLTC</span>
+      </div>
+      <div class="input-wrap">
+        <input type="number" id="stake-input" placeholder="0.00" min="0" step="0.01" oninput="mirrorAmount('stake-input','stake-out')"/>
+        <div class="token-badge">zkLTC</div>
+      </div>
+      <div class="arrow-mid">
+        <div class="arrow-circle">
+          <svg viewBox="0 0 13 13" fill="none" stroke="var(--gold)" stroke-width="1.5">
+            <path d="M6.5 1v11M2.5 8l4 4 4-4"/>
+          </svg>
+        </div>
+      </div>
+      <div class="output-row">
+        <span class="output-amount" id="stake-out">0.00</span>
+        <span class="token-badge" style="position:static;transform:none">wzkLTC</span>
+      </div>
+      <div class="info-lines">
+        <div class="info-line"><span>Rate</span><span class="val">1 zkLTC = 1 wzkLTC</span></div>
+        <div class="info-line"><span>APY</span><span class="val gold">12.4%</span></div>
+        <div class="info-line"><span>Cooldown</span><span class="val">None</span></div>
+      </div>
+      <button class="action-btn btn-gold" onclick="doStake()">Stake zkLTC</button>
+    </div>
+
+    <!-- Unstake body -->
+    <div id="unstake-body" class="panel-body" style="display:none">
+      <div class="input-label">
+        <span>You unstake</span>
+        <span class="bal-link" onclick="setMax('unstake-input','wzk-bal')">Balance: <span id="wzk-bal">—</span> wzkLTC</span>
+      </div>
+      <div class="input-wrap">
+        <input type="number" id="unstake-input" placeholder="0.00" min="0" step="0.01" oninput="mirrorAmount('unstake-input','unstake-out')"/>
+        <div class="token-badge">wzkLTC</div>
+      </div>
+      <div class="arrow-mid">
+        <div class="arrow-circle">
+          <svg viewBox="0 0 13 13" fill="none" stroke="var(--gold)" stroke-width="1.5">
+            <path d="M6.5 1v11M2.5 8l4 4 4-4"/>
+          </svg>
+        </div>
+      </div>
+      <div class="output-row">
+        <span class="output-amount" id="unstake-out">0.00</span>
+        <span class="token-badge" style="position:static;transform:none">zkLTC + rewards</span>
+      </div>
+      <div class="info-lines">
+        <div class="info-line"><span>Principal</span><span class="val" id="u-principal">—</span></div>
+        <div class="info-line"><span>Accrued interest</span><span class="val gold" id="u-interest">—</span></div>
+      </div>
+      <button class="action-btn btn-outline" onclick="doUnstake()">Unstake wzkLTC</button>
+    </div>
+  </div>
+
+  <!-- Info panel -->
+  <div class="panel">
+    <div class="panel-body">
+      <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:0.06em;margin-bottom:18px">PROTOCOL INFO</div>
+      <div class="info-lines">
+        <div class="info-line"><span>Token staked</span><span class="val">zkLTC</span></div>
+        <div class="info-line"><span>Token received</span><span class="val">wzkLTC</span></div>
+        <div class="info-line"><span>APY</span><span class="val gold">12.4%</span></div>
+        <div class="info-line"><span>Reward accrual</span><span class="val">Per block</span></div>
+        <div class="info-line"><span>Cooldown</span><span class="val">None</span></div>
+        <div class="info-line"><span>Network</span><span class="val">LitVM Testnet</span></div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:0.06em;margin-bottom:14px">CONTRACTS</div>
+      <div class="info-line">
+        <span>StakeZK</span>
+        <span class="val" style="font-size:11px;word-break:break-all" id="addr-stake">—</span>
+      </div>
+      <div class="info-line" style="margin-top:8px">
+        <span>wzkLTC</span>
+        <span class="val" style="font-size:11px;word-break:break-all" id="addr-wzk">—</span>
+      </div>
+      <div class="info-line" style="margin-top:8px">
+        <span>zkLTC</span>
+        <span class="val" style="font-size:11px;word-break:break-all" id="addr-zkltc">—</span>
+      </div>
+      <div class="divider"></div>
+      <button class="action-btn btn-outline" style="font-size:11px" onclick="getFaucet()">Get Testnet zkLTC (Faucet)</button>
+    </div>
+  </div>
+
+  <!-- Positions -->
+  <div class="pos-panel">
+    <div class="pos-header">
+      <div class="pos-title">MY POSITIONS</div>
+    </div>
+    <div id="positions-list">
+      <div class="pos-empty">Connect wallet to view your positions</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ethers.js v6 from CDN                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>
+// ─── CONTRACT ADDRESSES ───────────────────────────────────────────────────────
+const ADDRESSES = {
+  zkLTC:   "0x3B5e238e138faee57cF069E4c2d212ef03727bdb",
+  stakeZK: "0x653DACB3C9FE0601B215Dc2f0C5544240990A2F0",
+  wzkLTC:  "0xE1699F0A3cBfB22E92db27BEA9C091975786c98e",
+};
+
+// ─── LiteForge Testnet (Chain ID 4441) ───────────────────────────────────────
+const LITVM_CHAIN = {
+  chainId: "0x115D",   // 4441 in hex
+  chainName: "LiteForge Testnet",
+  nativeCurrency: { name: "zkLTC", symbol: "zkLTC", decimals: 18 },
+  rpcUrls: ["https://liteforge.rpc.caldera.xyz/http"],
+  blockExplorerUrls: ["https://liteforge.explorer.caldera.xyz"],
+};
+
+// ─── ABIs (minimal) ───────────────────────────────────────────────────────────
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+];
+const STAKEZK_ABI = [
+  "function stake(uint256 amount)",
+  "function unstake(uint256 amount)",
+  "function claimRewards()",
+  "function pendingRewards(address) view returns (uint256)",
+  "function getPosition(address) view returns (uint256 stakedAmount, uint256 accruedRewards, uint256 stakedSince)",
+  "function totalStaked() view returns (uint256)",
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let provider, signer, userAddress;
+let zkLTCContract, wzkLTCContract, stakeZKContract;
+
+// ─── 检测钱包（兼容 OKX / MetaMask / 其他） ───────────────────────────────────
+function getWalletProvider() {
+  // OKX 钱包
+  if (window.okxwallet) return window.okxwallet;
+  // MetaMask 或其他注入 window.ethereum 的钱包
+  if (window.ethereum) return window.ethereum;
+  return null;
+}
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+async function connectWallet() {
+  const walletProvider = getWalletProvider();
+  if (!walletProvider) {
+    toast("请先安装 OKX 钱包或 MetaMask！", true);
+    return;
+  }
+  try {
+    // 请求账户授权
+    await walletProvider.request({ method: "eth_requestAccounts" });
+
+    // 切换到 LiteForge 测试网
+    await switchToLitVM(walletProvider);
+
+    provider    = new ethers.BrowserProvider(walletProvider);
+    signer      = await provider.getSigner();
+    userAddress = await signer.getAddress();
+
+    zkLTCContract   = new ethers.Contract(ADDRESSES.zkLTC,   ERC20_ABI,   signer);
+    wzkLTCContract  = new ethers.Contract(ADDRESSES.wzkLTC,  ERC20_ABI,   signer);
+    stakeZKContract = new ethers.Contract(ADDRESSES.stakeZK, STAKEZK_ABI, signer);
+
+    const btn = document.getElementById("connect-btn");
+    btn.textContent = userAddress.slice(0,6) + "..." + userAddress.slice(-4);
+    btn.classList.add("connected");
+
+    document.getElementById("addr-stake").textContent = ADDRESSES.stakeZK;
+    document.getElementById("addr-wzk").textContent   = ADDRESSES.wzkLTC;
+    document.getElementById("addr-zkltc").textContent  = ADDRESSES.zkLTC;
+
+    await refreshAll();
+    toast("钱包连接成功！", false);
+  } catch(e) {
+    console.error(e);
+    toast(e.message || "连接失败，请重试", true);
+  }
+}
+
+async function switchToLitVM(walletProvider) {
+  try {
+    await walletProvider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: LITVM_CHAIN.chainId }],
+    });
+  } catch(e) {
+    // 4902 = 链不存在，自动添加
+    if (e.code === 4902 || e.code === -32603) {
+      await walletProvider.request({
+        method: "wallet_addEthereumChain",
+        params: [LITVM_CHAIN],
+      });
+    }
+  }
+}
+
+// ─── Data refresh ─────────────────────────────────────────────────────────────
+async function refreshAll() {
+  if (!userAddress) return;
+  try {
+    const [zkBal, wzkBal, pos, tvl] = await Promise.all([
+      zkLTCContract.balanceOf(userAddress),
+      wzkLTCContract.balanceOf(userAddress),
+      stakeZKContract.getPosition(userAddress),
+      stakeZKContract.totalStaked(),
+    ]);
+
+    const fmt = (v, d=4) => parseFloat(ethers.formatEther(v)).toFixed(d);
+
+    document.getElementById("zkltc-bal").textContent  = fmt(zkBal, 2);
+    document.getElementById("wzk-bal").textContent    = fmt(wzkBal, 2);
+    document.getElementById("stat-tvl").innerHTML     = fmt(tvl,2)+'<span class="stat-unit">zkLTC</span>';
+    document.getElementById("stat-staked").innerHTML  = fmt(pos.stakedAmount,2)+'<span class="stat-unit">wzkLTC</span>';
+    document.getElementById("stat-earned").innerHTML  = fmt(pos.accruedRewards,4)+'<span class="stat-unit">zkLTC</span>';
+    document.getElementById("u-principal").textContent = fmt(pos.stakedAmount,2)+" zkLTC";
+    document.getElementById("u-interest").textContent  = fmt(pos.accruedRewards,4)+" zkLTC";
+
+    renderPositions(pos);
+  } catch(e) { console.error(e); }
+}
+
+function renderPositions(pos) {
+  const list = document.getElementById("positions-list");
+  if (pos.stakedAmount === 0n) {
+    list.innerHTML = '<div class="pos-empty">No active positions. Stake zkLTC to start earning.</div>';
+    return;
+  }
+  const fmt = (v,d=4) => parseFloat(ethers.formatEther(v)).toFixed(d);
+  const since = pos.stakedSince > 0n
+    ? new Date(Number(pos.stakedSince)*1000).toLocaleDateString()
+    : "—";
+  list.innerHTML = `
+    <div class="pos-row">
+      <div><div class="pos-col-label">STAKED</div><div class="pos-col-val">${fmt(pos.stakedAmount,2)} wzkLTC</div></div>
+      <div><div class="pos-col-label">EARNED</div><div class="pos-col-val gold">${fmt(pos.accruedRewards,4)} zkLTC</div></div>
+      <div><div class="pos-col-label">APY</div><div class="pos-col-val gold">12.4%</div></div>
+      <div><div class="pos-col-label">SINCE</div><div class="pos-col-val">${since}</div></div>
+      <button class="claim-btn" onclick="doClaim()">Claim Rewards</button>
+    </div>`;
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+async function doStake() {
+  if (!signer) { toast("Connect wallet first", true); return; }
+  const raw = document.getElementById("stake-input").value;
+  if (!raw || +raw <= 0) { toast("Enter an amount", true); return; }
+  try {
+    const amt = ethers.parseEther(raw);
+    toast("Approving zkLTC…");
+    const approveTx = await zkLTCContract.approve(ADDRESSES.stakeZK, amt);
+    await approveTx.wait();
+    toast("Staking…");
+    const stakeTx = await stakeZKContract.stake(amt);
+    await stakeTx.wait();
+    document.getElementById("stake-input").value = "";
+    document.getElementById("stake-out").textContent = "0.00";
+    await refreshAll();
+    toast("Staked! wzkLTC minted ✓", false);
+  } catch(e) { toast(e.reason || e.message || "Transaction failed", true); }
+}
+
+async function doUnstake() {
+  if (!signer) { toast("Connect wallet first", true); return; }
+  const raw = document.getElementById("unstake-input").value;
+  if (!raw || +raw <= 0) { toast("Enter an amount", true); return; }
+  try {
+    const amt = ethers.parseEther(raw);
+    toast("Unstaking…");
+    const tx = await stakeZKContract.unstake(amt);
+    await tx.wait();
+    document.getElementById("unstake-input").value = "";
+    document.getElementById("unstake-out").textContent = "0.00";
+    await refreshAll();
+    toast("Unstaked! zkLTC + rewards returned ✓", false);
+  } catch(e) { toast(e.reason || e.message || "Transaction failed", true); }
+}
+
+async function doClaim() {
+  if (!signer) { toast("Connect wallet first", true); return; }
+  try {
+    toast("Claiming rewards…");
+    const tx = await stakeZKContract.claimRewards();
+    await tx.wait();
+    await refreshAll();
+    toast("Rewards claimed ✓", false);
+  } catch(e) { toast(e.reason || e.message || "Transaction failed", true); }
+}
+
+async function getFaucet() {
+  if (!signer) { toast("Connect wallet first", true); return; }
+  try {
+    const faucetABI = ["function faucet()"];
+    const faucetContract = new ethers.Contract(ADDRESSES.zkLTC, faucetABI, signer);
+    toast("Getting testnet zkLTC…");
+    const tx = await faucetContract.faucet();
+    await tx.wait();
+    await refreshAll();
+    toast("Got 10,000 testnet zkLTC ✓", false);
+  } catch(e) { toast(e.reason || e.message || "Faucet failed", true); }
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function switchTab(el, showId, hideId) {
+  el.parentElement.querySelectorAll(".ptab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById(showId).style.display = "";
+  document.getElementById(hideId).style.display = "none";
+}
+
+function mirrorAmount(inputId, outputId) {
+  const v = parseFloat(document.getElementById(inputId).value)||0;
+  document.getElementById(outputId).textContent = v.toFixed(2);
+}
+
+function setMax(inputId, balId) {
+  const bal = document.getElementById(balId).textContent;
+  if (bal && bal !== "—") {
+    document.getElementById(inputId).value = bal;
+    const outId = inputId === "stake-input" ? "stake-out" : "unstake-out";
+    document.getElementById(outId).textContent = parseFloat(bal).toFixed(2);
+  }
+}
+
+let toastTimer;
+function toast(msg, isErr) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "show" + (isErr===true?" err":(isErr===false?" ok":""));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.className="", 3500);
+}
+
+// Auto-refresh every 30s if connected
+setInterval(()=>{ if(userAddress) refreshAll(); }, 30000);
+</script>
+</body>
+</html>
